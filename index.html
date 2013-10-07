@@ -1,12 +1,17 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
 <html>
 <head>
-<link type="text/css" href="/css/jquery-ui-1.8.13.custom.css" rel="Stylesheet"/>
-<link type="text/css" href="/css/style.css" rel="Stylesheet" />
-<link rel="stylesheet" href="css/bootstrap.min.css"> 
+<link type="text/css" href="css/jquery-ui-1.8.13.custom.css" rel="Stylesheet"/>
+<link type="text/css" href="css/style.css" rel="Stylesheet" />
+<link rel="stylesheet" href="css/bootstrap.min.css">
+<link rel="stylesheet" href="js/nvd3/src/nv.d3.css"> 
 <script type="text/javascript" src="js/jquery-1.6.2.min.js"></script>
 <script type="text/javascript" src="js/jquery-ui-1.8.10.custom.min.js"></script>
 <script type="text/javascript" src="js/jquery.cookie.js"></script>
 <script type="text/javascript" src="js/flot/jquery.flot.js"></script>
+<script type="text/javascript" src="js/nvd3/lib/d3.v3.js"></script>
+<script type="text/javascript" src="js/nvd3/nv.d3.js"></script>
 <style type="text/css">
 .thumbcontainer {
     font-size: xx-small;
@@ -111,24 +116,91 @@ function getThumbs() {
 
 getThumbs();
 
-function plotgcc() {
+
+function getGCC() { 
     var outData = [];
+    var outList = [];
     var query = {spec: {site: site}, fields: ['brightness','date','url'] };
     var plotdata = "http://production.cybercommons.org/catalog/db_find/eomf_phenocam/data/" + JSON.stringify(query);
+    $.getJSON(plotdata+"?callback=?", 
+            function(data) {
+                //console.log(data); 
+                $.each(data, 
+                    function(i, item) { 
+                        if ( new Date(item['date']).getUTCHours() == 13 ) {
+                            outList.push([  new Date(item['date']), item.brightness.g / (item.brightness.g + item.brightness.b + item.brightness.r), item.url ])
+                            outData.push( { x: new Date(item['date']),  y: item.brightness.g / (item.brightness.g + item.brightness.b + item.brightness.r), url: item.url } ); 
+                        }
+                    }
+                );
+                //console.log(outData);
+                //plotgcc(outList);
+                plotgccd3([{values: outData, key: "GCC", color: "#ff7f0e"}]);
+                console.log([{values: outData, key: "GCC", color: "#ff7f0e"}])
+            }
+    );
+}
+
+function plotgcc(outData) {
+
     $('#plot').bind("plotclick", function(event, pos, item) {
-        console.log(outData);
         $("#fullsize").attr('src', outData[item.dataIndex][2]);
     });
-    $.getJSON(plotdata+"?callback=?", function(data) { 
-                $.each(data, function(i, item) { 
-            if ( new Date(item['date']).getUTCHours() == 13 ) {
-            outData.push( [ (new Date(item['date'])).getTime(), item.brightness.g / (item.brightness.g + item.brightness.b + item.brightness.r), item.url ] ); 
-            }
-        });
+
     $.plot($('#plot'),  [outData], { xaxis: {label: "gcc", mode:'time', min: new Date(2012,5,15).getTime()}, grid: { hoverable: true, clickable: true } } );
-    });
+
 }
-plotgcc();
+
+var chart;
+
+function plotgccd3(outData) {
+
+    nv.addGraph(function() { 
+        chart = nv.models.lineWithFocusChart({tooltips:false});
+        
+        chart.xAxis
+            .axisLabel('Date')
+            .tickFormat(function(d) { return d3.time.format('%x')(new Date(d)) } );
+
+        chart.yAxis
+            .axisLabel('Green Chromatic Color (gcc)')
+            .tickFormat(d3.format(',.2f'));
+
+        chart.x2Axis.tickFormat(function(d) { return d3.time.format('%x')(new Date(d)) } );
+
+        chart.y2Axis.tickFormat(d3.format(',.2f'));
+   
+
+
+        d3.select('#chart svg')
+            .datum(outData).call(chart);
+
+        nv.utils.windowResize(function() { d3.select('#chart svg').call(chart) });
+
+    chart.lines.dispatch.on('elementClick', function(e) { 
+        $("#fullsize").attr('src',e.point.url);
+    });
+
+
+
+        return chart
+ 
+    });
+};
+
+
+
+
+
+
+
+getGCC()
+
+
+
+
+
+
 
 
 });
@@ -144,12 +216,14 @@ plotgcc();
     </div>        
     <div class="row-fluid">
         <div class="span8"> <img id="fullsize"></img> </div>
-        <div class="span4"> <div class="plotname"> gcc (green chromatic coordinate) vs. time </div> <div id="plot"></div> </div>
+        <div class="span4"> <div class="plotname"> gcc (green chromatic coordinate) vs. time </div> <div id="chart"><svg style="height: 500px;"></svg></div>
+ </div>
     </div>
     <div class="row-fluid">Recent images:</div>
     <div class="row-fluid">
         <div id="thumbs" class="span12"></div>
     </div>
+
 </div>
 
 </body>

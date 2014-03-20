@@ -70,7 +70,8 @@ $(document).ready(function() {
 					outData.push({
 						x: new Date(item['date']),
 						y: item.brightness.g / (item.brightness.g + item.brightness.b + item.brightness.r),
-						url: item.url
+						url: item.url,
+                                                isodate:  new Date(item['date']).toISOString()
 					});
 				}
 			});
@@ -81,6 +82,10 @@ $(document).ready(function() {
 				key: "GCC",
 				color: "#ff7f0e"
 			}]);
+                        $("#csv").click(function() { 
+                                var csvdata = JSON2CSV(outData); 
+                                window.open("data:text/csv;charset=utf-8," + escape(csvdata));
+                            });
 			console.log([{
 				values: outData,
 				key: "GCC",
